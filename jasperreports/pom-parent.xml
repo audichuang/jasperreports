@@ -7,7 +7,7 @@
 	<packaging>pom</packaging>
 	<name>JasperReports Library Artifacts</name>
 	<description>Free Java Reporting Library</description>
-	<url>http://jasperreports.sourceforge.net</url>
+	<url>https://github.com/audichuang/jasperreports</url>
 	<organization>
 		<name>audichuang</name>
 		<url>https://github.com/audichuang</url>
@@ -89,8 +89,8 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<skipInstall>true</skipInstall>
 		<skipDeploy>true</skipDeploy>
-		<scmConnection>scm:git:https://github.com/TIBCOSoftware/jasperreports.git</scmConnection>
-		<scmUrl>https://github.com/TIBCOSoftware/jasperreports</scmUrl>
+		<scmConnection>scm:git:https://github.com/audichuang/jasperreports.git</scmConnection>
+		<scmUrl>https://github.com/audichuang/jasperreports</scmUrl>
 		<maven.buildNumber.doCheck>true</maven.buildNumber.doCheck>
 		<owasp.suppression.file>${basedir}/owasp-suppressions.xml</owasp.suppression.file>
 	</properties>
@@ -227,4 +227,64 @@
 			</plugin>
 		</plugins>
 	</build>
+	<profiles>
+		<!--
+			Artifacts required by Maven Central: -sources.jar, -javadoc.jar and a
+			detached GPG signature for every file. Kept in a profile so ordinary
+			builds stay fast and do not need a signing key.
+
+			mvn -f pom-all.xml clean deploy -Prelease -Denforcer.skip=true
+		-->
+		<profile>
+			<id>release</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-source-plugin</artifactId>
+						<version>3.3.1</version>
+						<executions>
+							<execution>
+								<id>attach-sources</id>
+								<goals>
+									<goal>jar-no-fork</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>3.0.1</version>
+						<configuration>
+							<quiet>true</quiet>
+							<doclint>none</doclint>
+						</configuration>
+						<executions>
+							<execution>
+								<id>attach-javadocs</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-gpg-plugin</artifactId>
+						<version>3.2.7</version>
+						<executions>
+							<execution>
+								<id>sign-artifacts</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>sign</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>
