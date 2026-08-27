@@ -35,7 +35,8 @@ jobs:
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: GPG_PASSPHRASE
+          # no gpg-passphrase on purpose: the release key is created without one,
+          # and handing gpg an empty passphrase fails where handing it none works
 
       - name: Verify the working tree is clean
         working-directory: jasperreports
@@ -48,8 +49,7 @@ jobs:
         working-directory: jasperreports
         run: |
           # enforcer demands JDK [1.8,9) but upstream itself released from 17
-          mvn -B -f pom-all.xml install -Prelease \
-              -Denforcer.skip=true -Dgpg.skip=true
+          mvn -B -f pom-all.xml install -Prelease -Denforcer.skip=true
         env:
           MAVEN_OPTS: -Xmx2g
 
@@ -66,6 +66,18 @@ jobs:
           java -cp "$CP:/tmp/it" FilterIT
           java -cp "$CP:/tmp/it" FieldAudit target/jasperreports-6.21.6.jar
 
+      - name: Verify signatures
+        working-directory: jasperreports
+        run: |
+          missing=0
+          for f in $(find . -path '*/target/*' \( -name '*.jar' -o -name '*.pom' \) ! -name '*.asc'); do
+            [ -f "$f.asc" ] || { echo "unsigned: $f"; missing=$((missing+1)); }
+          done
+          echo "unsigned artifacts: $missing"
+          test "$missing" -eq 0
+          gpg --verify target/jasperreports-*.jar.asc target/jasperreports-*.jar 2>&1 \
+            | grep -q "Good signature\|完好的簽章"
+
       - name: Guard against the nested-resource font jar
         working-directory: jasperreports
         run: |
@@ -81,7 +93,6 @@ jobs:
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Summary
         working-directory: jasperreports
