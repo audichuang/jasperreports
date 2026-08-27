@@ -1,0 +1,96 @@
+name: Publish to Maven Central
+
+# Manual by default. A fresh checkout is the point: pom-all.xml sets
+# maven.clean.skip=true, and ext/fonts collects **/*.ttf from the module root -
+# which contains target/ - so a reused workspace silently nests the font jar one
+# level deeper on every build. CI cannot hit that.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build, verify and sign, but do not upload'
+        type: boolean
+        default: true
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # buildnumber-maven-plugin needs real git history
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'    # upstream 6.21.5 was built with 17 too; target stays 1.8
+          distribution: 'temurin'
+          cache: maven
+          server-id: central    # must match <publishingServerId> in pom-parent.xml
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+
+      - name: Verify the working tree is clean
+        working-directory: jasperreports
+        run: |
+          # buildnumber-maven-plugin refuses a dirty tree, and the commit hash it
+          # records ends up in Implementation-Version
+          test -z "$(git status --porcelain)" || { git status --short; exit 1; }
+
+      - name: Build
+        working-directory: jasperreports
+        run: |
+          # enforcer demands JDK [1.8,9) but upstream itself released from 17
+          mvn -B -f pom-all.xml install -Prelease \
+              -Denforcer.skip=true -Dgpg.skip=true
+        env:
+          MAVEN_OPTS: -Xmx2g
+
+      - name: Verify the CVE fix and 6.21.5 compatibility
+        working-directory: jasperreports
+        run: |
+          python3 tests/cve-2026-6009/check_whitelist.py
+          CP="target/jasperreports-6.21.6.jar:$(mvn -B -q -f pom.xml \
+              dependency:build-classpath -Dmdep.outputFile=/dev/stdout \
+              -Denforcer.skip=true)"
+          mkdir -p /tmp/it
+          javac -nowarn -cp "$CP" -d /tmp/it \
+              tests/cve-2026-6009/FilterIT.java tests/cve-2026-6009/FieldAudit.java
+          java -cp "$CP:/tmp/it" FilterIT
+          java -cp "$CP:/tmp/it" FieldAudit target/jasperreports-6.21.6.jar
+
+      - name: Guard against the nested-resource font jar
+        working-directory: jasperreports
+        run: |
+          # 26 real entries; anything more means target/ leaked into the resources
+          n=$(unzip -l ext/fonts/target/jasperreports-fonts-*.jar | tail -1 | awk '{print $2}')
+          echo "font jar entries: $n"
+          test "$n" -lt 40 || { echo "font jar has nested paths - do NOT publish"; exit 1; }
+
+      - name: Deploy to Central
+        if: github.event_name == 'push' || inputs.dry_run == false
+        working-directory: jasperreports
+        run: mvn -B -f pom-all.xml deploy -Prelease -Denforcer.skip=true -DskipTests
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Summary
+        working-directory: jasperreports
+        run: |
+          {
+            echo "### Artifacts"
+            echo '```'
+            ls -1 target/*.jar ext/*/target/*.jar tools/*/target/*.jar 2>/dev/null \
+              | grep -vE 'sources|javadoc' | xargs -n1 basename
+            echo '```'
+            echo "Deployment stops in the Central Portal for review - nothing is public until you press Publish."
+          } >> "$GITHUB_STEP_SUMMARY"
