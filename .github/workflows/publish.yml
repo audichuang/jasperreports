@@ -75,8 +75,20 @@ jobs:
           done
           echo "unsigned artifacts: $missing"
           test "$missing" -eq 0
-          gpg --verify target/jasperreports-*.jar.asc target/jasperreports-*.jar 2>&1 \
-            | grep -q "Good signature\|完好的簽章"
+
+          # verify every signature, not just one. --status-fd gives machine-readable
+          # GOODSIG regardless of the runner's locale; matching on the human text
+          # ("Good signature") breaks under a non-English locale.
+          bad=0; checked=0
+          for sig in $(find . -path '*/target/*' -name '*.asc'); do
+            f="${sig%.asc}"
+            [ -f "$f" ] || continue
+            checked=$((checked+1))
+            gpg --status-fd 1 --verify "$sig" "$f" 2>/dev/null | grep -q '^\[GNUPG:\] GOODSIG' \
+              || { echo "BAD signature: $f"; bad=$((bad+1)); }
+          done
+          echo "signatures verified: $checked, bad: $bad"
+          test "$checked" -gt 0 && test "$bad" -eq 0
 
       - name: Guard against the nested-resource font jar
         working-directory: jasperreports
