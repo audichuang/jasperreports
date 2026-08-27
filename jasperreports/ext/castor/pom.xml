@@ -2,12 +2,12 @@
 		xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
-		<groupId>net.sf.jasperreports</groupId>
+		<groupId>io.github.audichuang</groupId>
 		<artifactId>jasperreports-parent</artifactId>
 		<version>${revision}</version>
 		<relativePath>../../pom-parent.xml</relativePath>
 	</parent>
-	<groupId>net.sf.jasperreports</groupId>
+	<groupId>io.github.audichuang</groupId>
 	<artifactId>jasperreports-castor</artifactId>
 	<packaging>jar</packaging>
 	<name>JasperReports Castor Persistence (Deprecated)</name>
@@ -25,7 +25,7 @@
 	</properties>
 	<dependencies>
 		<dependency>
-			<groupId>net.sf.jasperreports</groupId>
+			<groupId>io.github.audichuang</groupId>
 			<artifactId>jasperreports</artifactId>
 			<version>${revision}</version>
 			<scope>compile</scope>
