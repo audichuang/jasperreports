@@ -23,10 +23,8 @@
  */
 package net.sf.jasperreports.engine.util;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import net.sf.jasperreports.engine.JRPropertiesUtil;
@@ -75,49 +73,25 @@ public class JRDeserializationFilter
 
 	public static final String EXCEPTION_MESSAGE_KEY_VALUE_CLASS_NOT_VISIBLE = "value.deserialization.class.not.visible";
 
-	private static final Map<JasperReportsContext, Map<String, JRDeserializationFilter>> CACHE =
-			Collections.synchronizedMap(new WeakHashMap<JasperReportsContext, Map<String, JRDeserializationFilter>>());
-
 	/**
-	 * Returns the filter guarding the general object deserialization streams.
+	 * Returns a filter guarding the general object deserialization streams.
+	 * <p>
+	 * A new instance is built per stream, as upstream does. Filters are not cached
+	 * because {@link JasperReportsContext} properties are mutable: a cached filter
+	 * would keep applying the whitelist as it stood when the first stream was
+	 * opened, silently ignoring later changes.
 	 */
 	public static JRDeserializationFilter getObjectFilter(JasperReportsContext jasperReportsContext)
 	{
-		return getInstance(jasperReportsContext, PROPERTY_PREFIX_CLASS_WHITELIST);
+		return new JRDeserializationFilter(jasperReportsContext, PROPERTY_PREFIX_CLASS_WHITELIST);
 	}
 
-
 	/**
-	 * Returns the filter guarding {@link JRValueStringUtils} value deserialization.
+	 * Returns a filter guarding {@link JRValueStringUtils} value deserialization.
 	 */
 	public static JRDeserializationFilter getValueFilter(JasperReportsContext jasperReportsContext)
 	{
-		return getInstance(jasperReportsContext, PROPERTY_PREFIX_VALUE_CLASS_WHITELIST);
-	}
-
-	private static JRDeserializationFilter getInstance(JasperReportsContext jasperReportsContext,
-			String whitelistPrefix)
-	{
-		Map<String, JRDeserializationFilter> contextFilters;
-		synchronized (CACHE)
-		{
-			contextFilters = CACHE.get(jasperReportsContext);
-			if (contextFilters == null)
-			{
-				contextFilters = new ConcurrentHashMap<String, JRDeserializationFilter>();
-				CACHE.put(jasperReportsContext, contextFilters);
-			}
-		}
-
-		JRDeserializationFilter filter = contextFilters.get(whitelistPrefix);
-		if (filter == null)
-		{
-			// ponytail: benign race, two threads may build the same filter once; the
-			// result is identical so no locking beyond the map is warranted
-			filter = new JRDeserializationFilter(jasperReportsContext, whitelistPrefix);
-			contextFilters.put(whitelistPrefix, filter);
-		}
-		return filter;
+		return new JRDeserializationFilter(jasperReportsContext, PROPERTY_PREFIX_VALUE_CLASS_WHITELIST);
 	}
 
 	private final boolean filterEnabled;
@@ -215,12 +189,15 @@ public class JRDeserializationFilter
 
 	/**
 	 * Classes always allowed by the object deserialization filter, mirroring
-	 * DeserializationClassFilter.addExtraWhitelists() in 7.0.7. The char array
-	 * type code C is deliberately absent, as upstream.
+	 * DeserializationClassFilter.addExtraWhitelists() in 7.0.7, plus the char
+	 * array type code C which upstream leaves commented out.
 	 */
 	protected static void addHardcodedWhitelist(StandardClassWhitelist whitelist)
 	{
 		whitelist.addClass("B");
+		// upstream leaves C commented out, but char[] carries no readObject and does
+		// reach print elements that retain their original evaluated value
+		whitelist.addClass("C");
 		whitelist.addClass("D");
 		whitelist.addClass("F");
 		whitelist.addClass("I");

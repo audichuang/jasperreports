@@ -39,6 +39,7 @@ import net.sf.jasperreports.engine.util.JRDeserializationFilter;
 public class VirtualizationObjectInputStream extends ObjectInputStream
 {
 	private final JRVirtualizationContext virtualizationContext;
+	private final JRDeserializationFilter deserializationFilter;
 
 	public VirtualizationObjectInputStream(InputStream in, 
 			JRVirtualizationContext virtualizationContext) throws IOException
@@ -46,6 +47,8 @@ public class VirtualizationObjectInputStream extends ObjectInputStream
 		super(in);
 		
 		this.virtualizationContext = virtualizationContext;
+		this.deserializationFilter = JRDeserializationFilter.getObjectFilter(
+				virtualizationContext.getJasperReportsContext());
 		enableResolveObject(true);
 	}
 
@@ -58,8 +61,7 @@ public class VirtualizationObjectInputStream extends ObjectInputStream
 	protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException,
 			ClassNotFoundException
 	{
-		JRDeserializationFilter.getObjectFilter(virtualizationContext.getJasperReportsContext())
-				.checkClassVisibility(desc.getName());
+		deserializationFilter.checkClassVisibility(desc.getName());
 
 		return super.resolveClass(desc);
 	}

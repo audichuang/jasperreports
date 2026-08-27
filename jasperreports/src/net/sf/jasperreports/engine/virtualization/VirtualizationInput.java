@@ -44,6 +44,7 @@ public class VirtualizationInput extends ObjectInputStream
 	public static final String EXCEPTION_MESSAGE_KEY_READ_OBJECT_FAILED = "engine.virtualization.input.read.object.failed";
 
 	private final JRVirtualizationContext virtualizationContext;
+	private final JRDeserializationFilter deserializationFilter;
 	
 	private final SerializerRegistry serializerRegistry = DefaultSerializerRegistry.getInstance();
 
@@ -56,6 +57,8 @@ public class VirtualizationInput extends ObjectInputStream
 		super(in);
 		
 		this.virtualizationContext = virtualizationContext;
+		this.deserializationFilter = JRDeserializationFilter.getObjectFilter(
+				virtualizationContext.getJasperReportsContext());
 		
 		enableResolveObject(true);		
 	}
@@ -76,8 +79,7 @@ public class VirtualizationInput extends ObjectInputStream
 	protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException,
 			ClassNotFoundException
 	{
-		JRDeserializationFilter.getObjectFilter(virtualizationContext.getJasperReportsContext())
-				.checkClassVisibility(desc.getName());
+		deserializationFilter.checkClassVisibility(desc.getName());
 
 		return super.resolveClass(desc);
 	}

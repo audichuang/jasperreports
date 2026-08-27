@@ -42,6 +42,7 @@ import net.sf.jasperreports.engine.fonts.FontUtil;
 public class ContextClassLoaderObjectInputStream extends ObjectInputStream
 {
 	private final JasperReportsContext jasperReportsContext;
+	private final JRDeserializationFilter deserializationFilter;
 
 	/**
 	 * Creates an object input stream that reads data from the specified
@@ -56,6 +57,7 @@ public class ContextClassLoaderObjectInputStream extends ObjectInputStream
 		super(in);
 		
 		this.jasperReportsContext = jasperReportsContext;
+		this.deserializationFilter = JRDeserializationFilter.getObjectFilter(jasperReportsContext);
 		
 		try
 		{
@@ -87,7 +89,7 @@ public class ContextClassLoaderObjectInputStream extends ObjectInputStream
 	protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException,
 			ClassNotFoundException
 	{
-		JRDeserializationFilter.getObjectFilter(jasperReportsContext).checkClassVisibility(desc.getName());
+		deserializationFilter.checkClassVisibility(desc.getName());
 
 		try
 		{
