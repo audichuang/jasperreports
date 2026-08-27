@@ -26,6 +26,9 @@ package net.sf.jasperreports.engine.fill;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.io.ObjectStreamClass;
+
+import net.sf.jasperreports.engine.util.JRDeserializationFilter;
 
 /**
  * <code>java.io.ObjectInputStream</code> subclass used for deserializing report
@@ -44,6 +47,21 @@ public class VirtualizationObjectInputStream extends ObjectInputStream
 		
 		this.virtualizationContext = virtualizationContext;
 		enableResolveObject(true);
+	}
+
+	/**
+	 * Checks the class against the deserialization whitelist before resolving it.
+	 * 
+	 * @see JRDeserializationFilter
+	 */
+	@Override
+	protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException,
+			ClassNotFoundException
+	{
+		JRDeserializationFilter.getObjectFilter(virtualizationContext.getJasperReportsContext())
+				.checkClassVisibility(desc.getName());
+
+		return super.resolveClass(desc);
 	}
 
 	@Override

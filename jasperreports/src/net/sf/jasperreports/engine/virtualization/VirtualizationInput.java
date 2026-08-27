@@ -27,11 +27,13 @@ import java.awt.Font;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.io.ObjectStreamClass;
 import java.util.ArrayList;
 import java.util.List;
 
 import net.sf.jasperreports.engine.JRRuntimeException;
 import net.sf.jasperreports.engine.fill.JRVirtualizationContext;
+import net.sf.jasperreports.engine.util.JRDeserializationFilter;
 import net.sf.jasperreports.engine.fonts.FontUtil;
 
 /**
@@ -61,6 +63,23 @@ public class VirtualizationInput extends ObjectInputStream
 	public JRVirtualizationContext getVirtualizationContext()
 	{
 		return virtualizationContext;
+	}
+
+	/**
+	 * Checks the class against the deserialization whitelist before resolving it.
+	 * Reached via readJRObject() for SerializationConstants.OBJECT_ARBITRARY, and
+	 * by subclasses that delegate to super.resolveClass().
+	 * 
+	 * @see JRDeserializationFilter
+	 */
+	@Override
+	protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException,
+			ClassNotFoundException
+	{
+		JRDeserializationFilter.getObjectFilter(virtualizationContext.getJasperReportsContext())
+				.checkClassVisibility(desc.getName());
+
+		return super.resolveClass(desc);
 	}
 	
 	public int readIntCompressed() throws IOException

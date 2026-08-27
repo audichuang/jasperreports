@@ -76,14 +76,19 @@ public class ContextClassLoaderObjectInputStream extends ObjectInputStream
 	}
 
 	/**
-	 * Calls <code>super.resolveClass()</code> and in case this fails with
+	 * Checks the class against the deserialization whitelist, then calls
+	 * <code>super.resolveClass()</code> and in case this fails with
 	 * {@link ClassNotFoundException} attempts to load the class using the
 	 * context class loader.
+	 * 
+	 * @see JRDeserializationFilter
 	 */
 	@Override
 	protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException,
 			ClassNotFoundException
 	{
+		JRDeserializationFilter.getObjectFilter(jasperReportsContext).checkClassVisibility(desc.getName());
+
 		try
 		{
 			return super.resolveClass(desc);

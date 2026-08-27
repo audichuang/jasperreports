@@ -29,9 +29,11 @@ import java.io.IOException;
 import java.io.NotSerializableException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
 import java.util.HashMap;
 import java.util.Map;
 
+import net.sf.jasperreports.engine.DefaultJasperReportsContext;
 import net.sf.jasperreports.engine.JRRuntimeException;
 import net.sf.jasperreports.util.Base64Util;
 
@@ -556,7 +558,18 @@ public final class JRValueStringUtils
 				Base64Util.decode(dataIn, bytesOut);
 				
 				ByteArrayInputStream bytesIn = new ByteArrayInputStream(bytesOut.toByteArray());
-				ObjectInputStream objectIn = new ObjectInputStream(bytesIn);
+				final JRDeserializationFilter valueFilter = JRDeserializationFilter.getValueFilter(
+						DefaultJasperReportsContext.getInstance());
+				ObjectInputStream objectIn = new ObjectInputStream(bytesIn)
+				{
+					@Override
+					protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException,
+							ClassNotFoundException
+					{
+						valueFilter.checkClassVisibility(desc.getName());
+						return super.resolveClass(desc);
+					}
+				};
 				return objectIn.readObject();
 			}
 			catch (IOException | ClassNotFoundException e)
