@@ -133,6 +133,38 @@ sha1sum target/jasperreports-6.21.6.jar
 and paste it into the sha1 variant in
 `tests/cve-2026-6009/downstream-suppression.xml`.
 
+## After the Portal says Published
+
+Propagation to `repo1.maven.org` takes minutes to hours. Once it lands, verify the
+published artifact rather than the one still sitting in your target/ - they are not the
+same build.
+
+```bash
+B=https://repo1.maven.org/maven2/io/github/audichuang/jasperreports/6.21.6
+curl -sO $B/jasperreports-6.21.6.jar -O $B/jasperreports-6.21.6.jar.asc
+
+# 1. the signature chain actually works for a third party
+gpg --verify jasperreports-6.21.6.jar.asc jasperreports-6.21.6.jar
+
+# 2. the jar names the commit it was built from
+unzip -p jasperreports-6.21.6.jar META-INF/MANIFEST.MF | grep Implementation-Version
+git log -1 <that hash>          # must resolve in this repo
+
+# 3. the published jar - not a local rebuild - passes the suite
+CP="jasperreports-6.21.6.jar:$(mvn -f pom.xml -q dependency:build-classpath \
+     -Dmdep.outputFile=/dev/stdout -Denforcer.skip=true)"
+javac -cp "$CP" -d /tmp/v tests/cve-2026-6009/FilterIT.java
+java  -cp "$CP:/tmp/v" FilterIT
+```
+
+Recorded for 6.21.6: good signature; `Implementation-Version` resolved to `389d47b5a`;
+FilterIT 31 passed, ChartProbe 146 classes 0 rejected, FieldAudit 13 (8 concrete).
+
+Then, off-repo: revoke the publishing token used for the release and issue a fresh one
+(updating both the GitHub secret and `~/.m2/settings.xml`), and keep a copy of
+`~/.gnupg/openpgp-revocs.d/<fingerprint>.rev` somewhere other than this machine - the
+signing key has no passphrase, so that file is the only way to disown it.
+
 ## Consuming it
 
 ```xml
